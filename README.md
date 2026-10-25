@@ -4,14 +4,15 @@
 
 ## 安装
 
-1. 打开 Harness → **设置 → 插件**（安装、启用和配置插件）。
-2. 点 **安装第三方插件**，在输入框里填这个目录的**绝对路径**：
+1. 克隆到本地任意目录：
 
-   ```
-   /path/to/dsh-session-trash
+   ```bash
+   git clone https://github.com/antic222/dsh-session-trash
    ```
 
-3. 安装完成后刷新页面（⌘R）。侧栏任意会话的「⋯」菜单最下面会多出「删除会话」。
+2. 打开 Harness → **设置 → 插件**（安装、启用和配置插件）。
+3. 点 **安装第三方插件**，在输入框里填上面克隆出来的目录的**绝对路径**（例如 `/path/to/dsh-session-trash`）。
+4. 安装完成后刷新页面（⌘R）。侧栏任意会话的「⋯」菜单最下面会多出「删除会话」。
 
 > 必须填本地目录路径，不要填包名 `@local/dsh-session-trash`，否则 pnpm 会去 npm registry 找这个包。
 
