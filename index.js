@@ -16,6 +16,59 @@ const SERVICE = 'sessionTrash'
 /** Prototype key read by the Typert Gateway's source-mode discovery. */
 const REMOTE_METHODS = '@deepseek-ai/dsh-typert-protocol/remote-methods'
 
+/** Render one unknown failure as a message. */
+function messageOf(error) {
+  return error instanceof Error ? error.message : String(error)
+}
+
+/**
+ * Ask the same activity waterfall the built-in archive flow uses.
+ * @param ctx - plugin context.
+ * @param sessionId - the Session to inspect.
+ * @returns the reported activity entries; empty when nothing is running.
+ */
+async function reportedActivity(ctx, sessionId) {
+  try {
+    const activity = await ctx.waterfall('workspace/session-activity', { sessionId }, () => Promise.resolve([]))
+    return Array.isArray(activity) ? activity : []
+  } catch (error) {
+    ctx.logger?.warn?.(`session-trash: activity check failed: ${messageOf(error)}`)
+    return []
+  }
+}
+
+/**
+ * Decide whether a live Session may be deleted, and how to release it.
+ *
+ * A Session stays in the Host session store after the browser switches away,
+ * so "live" alone is not a refusal: only running work is. When it is idle, the
+ * returned `detach` removes the entry from the store (which emits
+ * `session/disposed`, so the sidebar row disappears without a restart).
+ * @param ctx - plugin context.
+ * @param sessionId - the Session to inspect.
+ * @returns `{ ok: true, detach? }` or `{ ok: false, code }`.
+ */
+async function checkLiveSession(ctx, sessionId) {
+  const sessions = ctx.get('sessions')
+  if (sessions === undefined) return { ok: false, code: 'open' }
+  const session = sessions.get(sessionId)
+  if (session === undefined) return { ok: true }
+
+  const activity = await reportedActivity(ctx, sessionId)
+  if (activity.length > 0) return { ok: false, code: 'active' }
+
+  if (typeof sessions.liveEntryFor !== 'function' || typeof sessions.detachEntered !== 'function') {
+    return { ok: false, code: 'open' }
+  }
+  return {
+    ok: true,
+    detach: () => {
+      const entry = sessions.liveEntryFor(session)
+      if (entry !== undefined) sessions.detachEntered(entry)
+    },
+  }
+}
+
 /**
  * One destructive operation over stored Sessions.
  *
@@ -46,6 +99,7 @@ class SessionTrashService {
       sessions: this.ctx.get('sessions'),
       sessionPersistence: this.ctx.get('sessionPersistence'),
       workspaceRegistry: this.ctx.get('workspaceRegistry'),
+      checkLive: (id) => checkLiveSession(this.ctx, id),
       logger: this.ctx.logger,
     }, sessionId)
   }

@@ -77,7 +77,7 @@ test('deletes the artifact, the accounting and the cache shard', async () => {
   }
 })
 
-test('refuses a Session that is live in this Host process', async () => {
+test('refuses a live Session when the Host exposes no release step', async () => {
   const f = await fixture()
   try {
     const result = await deleteStoredSession({
@@ -90,6 +90,55 @@ test('refuses a Session that is live in this Host process', async () => {
     assert.deepEqual(result, { ok: false, code: 'open' })
     assert.equal((await stat(f.dir)).isDirectory(), true)
     assert.deepEqual(f.calls, [])
+  } finally {
+    await f.cleanup()
+  }
+})
+
+test('refuses a live Session whose work is running', async () => {
+  const f = await fixture()
+  try {
+    const result = await deleteStoredSession({
+      sessions: { get: (id) => (id === SESSION ? { id } : undefined) },
+      sessionPersistence: f.persistence,
+      workspaceRegistry: f.registry,
+      checkLive: async () => ({ ok: false, code: 'active' }),
+      homeDir: f.root,
+    }, SESSION)
+
+    assert.deepEqual(result, { ok: false, code: 'active' })
+    assert.equal((await stat(f.dir)).isDirectory(), true)
+    assert.deepEqual(f.calls, [])
+  } finally {
+    await f.cleanup()
+  }
+})
+
+test('releases an idle live Session after its files are gone', async () => {
+  const f = await fixture()
+  try {
+    let artifactAtRelease = 'not-called'
+    const result = await deleteStoredSession({
+      sessions: { get: (id) => (id === SESSION ? { id } : undefined) },
+      sessionPersistence: f.persistence,
+      workspaceRegistry: f.registry,
+      checkLive: async () => ({
+        ok: true,
+        detach: async () => {
+          artifactAtRelease = await stat(f.dir).then(() => 'exists', () => 'gone')
+        },
+      }),
+      homeDir: f.root,
+    }, SESSION)
+
+    assert.equal(result.ok, true)
+    assert.equal(artifactAtRelease, 'gone')
+    await assert.rejects(stat(f.dir), { code: 'ENOENT' })
+    assert.deepEqual(f.calls, [
+      ['detach', SESSION],
+      ['unarchive', SESSION],
+      ['unpin', SESSION],
+    ])
   } finally {
     await f.cleanup()
   }

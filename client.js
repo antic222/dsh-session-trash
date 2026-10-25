@@ -29,7 +29,8 @@ window.__ModuleLoader__.load({
       'delete.confirm': '删除',
       'delete.pending': '正在删除…',
       'delete.close': '关闭',
-      'error.open': '这个对话正在使用中，请先切换到其他对话再删除。',
+      'error.open': '这个对话仍被宿主占用，暂时无法删除。',
+      'error.active': '这个对话正在运行任务，等它停下来再删除。',
       'error.missing': '对话已不存在，可能已经被删除。',
       'error.invalid': '无法识别的对话。',
       'error.unknown': '删除失败。',
@@ -44,7 +45,8 @@ window.__ModuleLoader__.load({
       'delete.confirm': 'Delete',
       'delete.pending': 'Deleting…',
       'delete.close': 'Close',
-      'error.open': 'This session is in use. Switch to another session before deleting it.',
+      'error.open': 'This session is still held by the host and cannot be deleted right now.',
+      'error.active': 'This session is running work. Wait for it to finish, then delete it.',
       'error.missing': 'The session no longer exists.',
       'error.invalid': 'Unrecognized session.',
       'error.unknown': 'The session could not be deleted.',
@@ -162,6 +164,7 @@ window.__ModuleLoader__.load({
     /** Map a Host refusal code to a localized sentence. */
     function messageFor(code, t) {
       switch (code) {
+        case 'active': return t('error.active')
         case 'open': return t('error.open')
         case 'missing': return t('error.missing')
         case 'invalid': return t('error.invalid')
